@@ -1,10 +1,275 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LLM-E2E-Test · Case3 宝塔测试 · Skyline Rush 天际线冲刺（Model3 Kimi-K3 带图参考）</title><style>
-body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;max-width:860px;margin:40px auto;padding:0 20px;background:#f7f7f9;color:#222;line-height:1.7}
-h1{font-size:24px;border-bottom:3px solid #4f46e5;padding-bottom:10px} h2{font-size:16px;color:#555;font-weight:normal}
-ul{list-style:none;padding:0} li{background:#fff;border:1px solid #e2e2e8;border-radius:10px;margin:10px 0;padding:14px 18px}
-a{color:#4f46e5;text-decoration:none;font-size:15px;font-weight:600} a:hover{text-decoration:underline} span{color:#888;font-size:13px;margin-left:8px}
-</style></head><body>
-<h1>LLM-E2E-Test · Case3 宝塔测试 · Skyline Rush 天际线冲刺（Model3 Kimi-K3 带图参考）</h1><h2>多个大模型分别生成的网页 · 静态部署导航（原始文件未做任何修改）</h2><ul>
-<li><a href="index.html">Skyline Rush · 天际线冲刺（3D 过山车）</a><span>→ index.html</span></li>
-</ul></body></html>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Skyline Rush · 天际线冲刺</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a1222'/%3E%3Cpath d='M4 22 Q10 8 16 8 T28 22' stroke='%2337e0ff' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='8' r='2.6' fill='%23ffb545'/%3E%3C/svg%3E" />
+<style>
+  :root {
+    --accent: #37e0ff;
+    --amber: #ffb545;
+    --danger: #ff4d5e;
+    --panel: rgba(10, 18, 34, 0.72);
+    --panel-border: rgba(120, 200, 255, 0.25);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+    background: #050914; color: #eaf6ff;
+    font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    user-select: none; touch-action: none;
+  }
+  #app { position: fixed; inset: 0; }
+  canvas { display: block; }
+
+  /* 暗角，增强沉浸感 */
+  #vignette {
+    position: fixed; inset: 0; pointer-events: none; z-index: 3;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,10,0.45) 100%);
+  }
+
+  /* ============ HUD ============ */
+  #hud { position: fixed; inset: 0; z-index: 5; pointer-events: none; opacity: 0; transition: opacity .4s; }
+  #hud.on { opacity: 1; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--panel-border);
+    border-radius: 12px; backdrop-filter: blur(6px);
+    padding: 10px 14px;
+  }
+  #hud-speed { position: absolute; top: 16px; left: 16px; min-width: 150px; }
+  #hud-speed .num { font-size: 40px; font-weight: 800; line-height: 1; color: #fff;
+    text-shadow: 0 0 14px rgba(55,224,255,.8); font-variant-numeric: tabular-nums; }
+  #hud-speed .unit { font-size: 13px; color: var(--accent); margin-left: 4px; }
+  #hud-speed .alt { margin-top: 4px; font-size: 12px; color: #9fd8ff; font-variant-numeric: tabular-nums; }
+
+  #hud-right { position: absolute; top: 16px; right: 16px; text-align: right; font-size: 13px; line-height: 1.9; }
+  #hud-right .big { font-size: 22px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+  #hud-right .score { color: var(--amber); }
+
+  #hud-progress { position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+    width: min(44vw, 460px); height: 10px; padding: 3px; }
+  #hud-progress .bar { position: relative; height: 100%; background: rgba(255,255,255,.12); border-radius: 99px; overflow: visible; }
+  #hud-progress .fill { height: 100%; width: 0%; border-radius: 99px;
+    background: linear-gradient(90deg, #1d7fd6, var(--accent)); box-shadow: 0 0 10px rgba(55,224,255,.7); }
+  #hud-progress .tick { position: absolute; top: -3px; width: 4px; height: 16px; margin-left: -2px;
+    background: var(--amber); border-radius: 2px; box-shadow: 0 0 8px rgba(255,181,69,.9); }
+  #hud-progress .zone { position: absolute; top: 0; height: 100%; background: rgba(255,77,94,.35); border-radius: 2px; }
+
+  .barwrap { position: absolute; width: 170px; font-size: 11px; letter-spacing: 1px; }
+  .barwrap .label { display: flex; justify-content: space-between; margin-bottom: 4px; color: #bfe9ff; }
+  .barwrap .track { height: 9px; background: rgba(255,255,255,.12); border-radius: 99px; overflow: hidden; }
+  .barwrap .val { height: 100%; width: 100%; border-radius: 99px; transition: width .12s linear; }
+  #hud-energy { left: 16px; bottom: 18px; }
+  #hud-energy .val { background: linear-gradient(90deg, #1d9dd6, var(--accent)); box-shadow: 0 0 8px rgba(55,224,255,.8); }
+  #hud-stab { right: 16px; bottom: 18px; }
+  #hud-stab .val { background: linear-gradient(90deg, #53e08a, #b7ff5e); box-shadow: 0 0 8px rgba(120,255,140,.7); }
+  #hud-stab.low .val { background: linear-gradient(90deg, #ff9a3d, var(--danger)); }
+
+  #toast {
+    position: absolute; top: 20%; left: 50%; transform: translateX(-50%);
+    font-size: clamp(18px, 3.2vw, 30px); font-weight: 800; letter-spacing: 2px;
+    color: #fff; text-shadow: 0 0 18px rgba(55,224,255,.9), 0 2px 6px rgba(0,0,0,.6);
+    opacity: 0; transition: opacity .25s; white-space: nowrap; text-align: center;
+  }
+  #toast.warn { color: #ffd9a0; text-shadow: 0 0 18px rgba(255,140,40,.95), 0 2px 6px rgba(0,0,0,.7); }
+  #toast.good { color: #b6ffce; text-shadow: 0 0 18px rgba(80,255,150,.9), 0 2px 6px rgba(0,0,0,.7); }
+
+  /* ============ 触屏控件 ============ */
+  #touch { position: fixed; inset: 0; z-index: 6; pointer-events: none; display: none; }
+  #touch.on { display: block; }
+  .tbtn {
+    position: absolute; pointer-events: auto; display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; border: 1px solid var(--panel-border); background: rgba(10,20,40,.5);
+    color: #cfeaff; font-size: 22px; backdrop-filter: blur(4px);
+  }
+  .tbtn:active { background: rgba(55,224,255,.3); }
+  #btn-lean-l { left: 4vw; bottom: 12vh; width: 76px; height: 76px; }
+  #btn-lean-r { left: calc(4vw + 92px); bottom: 12vh; width: 76px; height: 76px; }
+  #btn-boost { right: 4vw; bottom: 12vh; width: 84px; height: 84px; color: var(--accent); font-size: 15px; font-weight: 700; }
+  #btn-brake { right: calc(4vw + 100px); bottom: 12vh; width: 70px; height: 70px; color: var(--amber); font-size: 15px; font-weight: 700; }
+  #btn-pause-t { right: 16px; top: 96px; width: 44px; height: 44px; font-size: 16px; }
+
+  /* ============ 覆盖层菜单 ============ */
+  .overlay {
+    position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
+    background: rgba(4, 8, 18, 0.62); backdrop-filter: blur(8px);
+  }
+  .overlay.hidden { display: none; }
+  .card {
+    width: min(92vw, 520px); max-height: 92vh; overflow-y: auto;
+    background: var(--panel); border: 1px solid var(--panel-border); border-radius: 18px;
+    padding: 30px 34px; text-align: center; box-shadow: 0 20px 80px rgba(0,0,0,.6);
+  }
+  .card h1 {
+    margin: 0 0 4px; font-size: clamp(30px, 6vw, 44px); font-weight: 900; letter-spacing: 3px;
+    background: linear-gradient(90deg, #37e0ff, #8ab6ff, #ffb545);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .card h1 .cn { display: block; font-size: 15px; letter-spacing: 10px; color: #9fd8ff;
+    -webkit-text-fill-color: #9fd8ff; margin-top: 4px; font-weight: 500; }
+  .card .sub { color: #9fd8ff; font-size: 13px; margin-bottom: 18px; }
+  .btn {
+    display: inline-block; cursor: pointer; border: none; border-radius: 12px;
+    padding: 13px 34px; font-size: 17px; font-weight: 700; letter-spacing: 2px;
+    color: #04121e; background: linear-gradient(90deg, #37e0ff, #6ef3c5);
+    box-shadow: 0 6px 24px rgba(55,224,255,.4); transition: transform .12s;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn.ghost { background: transparent; color: #cfeaff; border: 1px solid var(--panel-border); box-shadow: none; font-size: 14px; padding: 10px 22px; }
+  .btn-row { display: flex; gap: 12px; justify-content: center; margin-top: 14px; flex-wrap: wrap; }
+
+  .help { text-align: left; font-size: 13px; line-height: 2; color: #bfe0f5;
+    background: rgba(255,255,255,.05); border-radius: 12px; padding: 12px 16px; margin: 16px 0; }
+  .help b { color: var(--accent); font-weight: 600; }
+  .help .kbd { display: inline-block; min-width: 26px; padding: 1px 7px; margin: 0 2px;
+    background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); border-radius: 6px;
+    font-size: 12px; text-align: center; color: #fff; }
+
+  .settings { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; font-size: 14px; }
+  .settings label { display: flex; justify-content: space-between; align-items: center;
+    background: rgba(255,255,255,.05); border-radius: 10px; padding: 9px 14px; cursor: pointer; }
+  .settings select, .settings input[type="checkbox"] { accent-color: var(--accent); transform: scale(1.15); }
+  .settings select { background: #0d1a30; color: #eaf6ff; border: 1px solid var(--panel-border); border-radius: 8px; padding: 5px 10px; font-size: 13px; }
+  .best { margin-top: 14px; font-size: 13px; color: var(--amber); letter-spacing: 1px; }
+
+  #result-stats { text-align: left; font-size: 14px; line-height: 2.2; margin: 10px 0; }
+  #result-stats .row { display: flex; justify-content: space-between;
+    border-bottom: 1px dashed rgba(255,255,255,.12); padding: 0 4px; }
+  #result-stats .row span:last-child { color: #fff; font-weight: 600; font-variant-numeric: tabular-nums; }
+  #grade { font-size: 64px; font-weight: 900; margin: 6px 0;
+    background: linear-gradient(180deg, #fff, var(--accent));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 0 40px rgba(55,224,255,.5); }
+  #fail-reason { color: #ffb0b9; font-size: 16px; margin: 8px 0 4px; line-height: 1.8; }
+
+  #loading { position: fixed; inset: 0; z-index: 20; background: #050914;
+    display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px;
+    color: #9fd8ff; font-size: 14px; letter-spacing: 4px; }
+  #loading .spin { width: 42px; height: 42px; border-radius: 50%;
+    border: 3px solid rgba(55,224,255,.2); border-top-color: var(--accent);
+    animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+  <script type="module" crossorigin src="/assets/index-BSSYrVjT.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="vignette"></div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="panel" id="hud-speed">
+      <span class="num" id="speed-num">0</span><span class="unit">km/h</span>
+      <div class="alt">高度 <span id="alt-num">0</span> m · <span id="gs-num"></span></div>
+    </div>
+    <div class="panel" id="hud-progress"><div class="bar" id="progress-bar"><div class="fill" id="progress-fill"></div></div></div>
+    <div class="panel" id="hud-right">
+      <div class="big score">分数 <span id="score-num">0</span></div>
+      <div>时间 <span id="time-num">0:00</span></div>
+      <div>光环 <span id="ring-num">0/0</span></div>
+    </div>
+    <div class="barwrap" id="hud-energy">
+      <div class="label"><span>能量 ENERGY</span><span id="energy-num">0</span></div>
+      <div class="track"><div class="val" id="energy-fill"></div></div>
+    </div>
+    <div class="barwrap" id="hud-stab">
+      <div class="label"><span>稳定 STABILITY</span><span id="stab-num">0</span></div>
+      <div class="track"><div class="val" id="stab-fill"></div></div>
+    </div>
+    <div id="toast"></div>
+  </div>
+
+  <!-- 触屏控件 -->
+  <div id="touch">
+    <div class="tbtn" id="btn-lean-l">◀</div>
+    <div class="tbtn" id="btn-lean-r">▶</div>
+    <div class="tbtn" id="btn-boost">加速</div>
+    <div class="tbtn" id="btn-brake">刹车</div>
+    <div class="tbtn" id="btn-pause-t">Ⅱ</div>
+  </div>
+
+  <!-- 主菜单 -->
+  <div class="overlay" id="menu">
+    <div class="card">
+      <h1>SKYLINE RUSH<span class="cn">天 际 线 冲 刺</span></h1>
+      <div class="sub">黄昏出发，夜幕冲线 · 第一视角 3D 过山车</div>
+      <button class="btn" id="btn-start">开始挑战</button>
+      <div class="help">
+        <b>玩法：</b>左右调整重心收集光环、通过<b style="color:var(--amber)">检查点</b>时保持速度；
+        进入<b style="color:var(--danger)">危险路段</b>按提示控速。脱轨、失速或错过检查点即失败。<br>
+        <b>键盘：</b><span class="kbd">A</span><span class="kbd">D</span>/方向键 重心 ·
+        <span class="kbd">W</span>/<span class="kbd">Shift</span> 加速 ·
+        <span class="kbd">S</span>/<span class="kbd">空格</span> 刹车 ·
+        <span class="kbd">P</span> 暂停<br>
+        <b>手机：</b>屏幕虚拟按键操作
+      </div>
+      <div class="settings">
+        <label>音效 <input type="checkbox" id="set-sound" checked></label>
+        <label>画质
+          <select id="set-quality">
+            <option value="low">流畅</option>
+            <option value="medium" selected>均衡</option>
+            <option value="high">极致</option>
+          </select>
+        </label>
+        <label>减弱眩晕模式 <input type="checkbox" id="set-comfort"></label>
+      </div>
+      <div class="best" id="best-line"></div>
+    </div>
+  </div>
+
+  <!-- 暂停 -->
+  <div class="overlay hidden" id="pause">
+    <div class="card">
+      <h1 style="font-size:34px">已暂停</h1>
+      <div class="sub">深呼吸，轨道还在等你</div>
+      <div class="settings">
+        <label>音效 <input type="checkbox" id="set-sound-p" checked></label>
+        <label>画质
+          <select id="set-quality-p">
+            <option value="low">流畅</option>
+            <option value="medium" selected>均衡</option>
+            <option value="high">极致</option>
+          </select>
+        </label>
+        <label>减弱眩晕模式 <input type="checkbox" id="set-comfort-p"></label>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="btn-resume">继续</button>
+        <button class="btn ghost" id="btn-restart-p">重新开始</button>
+        <button class="btn ghost" id="btn-quit-p">回主菜单</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 失败 -->
+  <div class="overlay hidden" id="fail">
+    <div class="card">
+      <h1 style="font-size:34px">挑战失败</h1>
+      <div id="fail-reason"></div>
+      <div class="btn-row">
+        <button class="btn" id="btn-retry-f">重新挑战</button>
+        <button class="btn ghost" id="btn-quit-f">回主菜单</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 结算 -->
+  <div class="overlay hidden" id="result">
+    <div class="card">
+      <h1 style="font-size:30px">冲线成功！</h1>
+      <div id="grade">S</div>
+      <div id="result-stats"></div>
+      <div class="best" id="best-line-r"></div>
+      <div class="btn-row">
+        <button class="btn" id="btn-retry-r">再来一局</button>
+        <button class="btn ghost" id="btn-quit-r">回主菜单</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="loading"><div class="spin"></div>正在铺设轨道…</div>
+
+</body>
+</html>
